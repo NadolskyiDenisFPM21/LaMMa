@@ -1,7 +1,8 @@
 import logging
-from openai import OpenAI
 from telegram import ForceReply, Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, ConversationHandler
+import requests
+import json
 
 import test_embeddings
 import os
@@ -13,7 +14,6 @@ company_info = ""
 
 with open("company.txt", "r", encoding="utf-8") as file:
     company_info = file.read()
-
 
 # Enable logging
 logging.basicConfig(
@@ -57,27 +57,33 @@ async def find_product(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     if "context" not in context.user_data:
         context.user_data["context"] = []
     
-
-    messages=[
-            {"role": "system", "content": "Відповідай на запитання, використовуючи лише ту інформацію, яка міститься у наданому контексті. Вибери з контексту кілька варіантів, які найкраще відповідають запитанню, і надай їх користувачеві. Якщо в контексті немає підходящих варіантів, повідом, що товар не знайдено. Подавай відповідь у вигляді переліку товарів з характеристиками і цінами. Відповідай українською мовою, якщо не було вказівок відповідати іншою мовою."},
-        ]
+    messages = [
+        {"role": "system", "content": "Відповідай на запитання, використовуючи лише ту інформацію, яка міститься у наданому контексті. Вибери з контексту кілька варіантів, які найкраще відповідають запитанню, і надай їх користувачеві. Якщо в контексті немає підходящих варіантів, повідом, що товар не знайдено. Подавай відповідь у вигляді переліку товарів з характеристиками і цінами. Відповідай українською мовою, якщо не було вказівок відповідати іншою мовою."},
+    ]
     if len(context.user_data["context"]) == 0:
         context.user_data["context"] = messages
         output = test_embeddings.generate_data(user_input)
         prompt = f"Вопрос: {user_input}; Контекст: {output}."
-        prompt = {"role": "user", "content": f"{prompt}"}
+        context.user_data["context"].append({"role": "user", "content": prompt})
     else:
-        prompt = {"role": "user", "content": f"{user_input}"}
-    context.user_data["context"].append(prompt)
+        context.user_data["context"].append({"role": "user", "content": user_input})
+
     await update.message.reply_text("Формую відповідь...")
-    client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
-    completion = client.chat.completions.create(
-        model="LM Studio Community/Meta-Llama-3-8B-Instruct-GGUF",
-        messages=context.user_data["context"],
-        temperature=0.1,
-    )
-    context.user_data["context"].append({"role": "assistant", "content": f"{completion.choices[0].message.content}"})
-    await update.message.reply_text(completion.choices[0].message.content)
+    
+    response = requests.post('http://localhost:11434/api/chat', 
+                             json={
+                                 "model": "llama3.1",
+                                 "messages": context.user_data["context"]
+                             })
+    
+    if response.status_code == 200:
+        result = response.json()
+        assistant_message = result['message']['content']
+        context.user_data["context"].append({"role": "assistant", "content": assistant_message})
+        await update.message.reply_text(assistant_message)
+    else:
+        await update.message.reply_text("Виникла помилка при отриманні відповіді.")
+
     return PRODUCT_SEARCH
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -86,27 +92,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
     if "context" not in context.user_data:
         context.user_data["context"] = []
-    messages=[
-            {"role": "system", "content": company_info},
-        ]
+    messages = [
+        {"role": "system", "content": company_info},
+    ]
     if len(context.user_data["context"]) == 0:
         context.user_data["context"] = messages
     context.user_data["context"].append({"role": "user", "content": user_input})
 
     await update.message.reply_text("Формую відповідь...")
-    client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
-    completion = client.chat.completions.create(
-        model="LM Studio Community/Meta-Llama-3-8B-Instruct-GGUF",
-        messages=context.user_data["context"],
-        temperature=0.4,
-    )
-    context.user_data["context"].append({"role": "assistant", "content": completion.choices[0].message.content})
-    await update.message.reply_text(completion.choices[0].message.content)
-    return MAIN_MENU
-
-
-
     
+    response = requests.post('http://localhost:11434/api/chat', 
+                             json={
+                                 "model": "llama3.1",
+                                 "messages": context.user_data["context"]
+                             })
+    
+    if response.status_code == 200:
+        result = response.json()
+        assistant_message = result['message']['content']
+        context.user_data["context"].append({"role": "assistant", "content": assistant_message})
+        await update.message.reply_text(assistant_message)
+    else:
+        await update.message.reply_text("Виникла помилка при отриманні відповіді.")
+
+    return MAIN_MENU
 
 def main() -> None:
     """Start the bot."""

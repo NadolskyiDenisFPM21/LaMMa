@@ -1,13 +1,18 @@
 import pandas as pd
-from openai import OpenAI
+import requests
 
-# Подключение к LM Studio
-client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
-
-# Функция для получения эмбеддинга текста
-def get_embedding(text, model="second-state/Nomic-embed-text-v1.5-Embedding-GGUF"):
+# Функция для получения эмбеддинга текста с использованием Ollama
+def get_embedding(text, model="mxbai-embed-large"):
     text = text.replace("\n", " ")
-    return client.embeddings.create(input=[text], model=model).data[0].embedding
+    response = requests.post('http://localhost:11434/api/embeddings', 
+                             json={
+                                 "model": model,
+                                 "prompt": text
+                             })
+    if response.status_code == 200:
+        return response.json()['embedding']
+    else:
+        raise Exception(f"Failed to get embedding from Ollama: {response.text}")
 
 # Чтение Excel файла и обработка товаров и их характеристик
 def process_xlsx(file_path, columns_to_embed):
@@ -25,6 +30,8 @@ def process_xlsx(file_path, columns_to_embed):
                 embeddings.append(embedding)
             except KeyError as e:
                 print(f"Ошибка: не найден столбец {e}")
+            except Exception as e:
+                print(f"Ошибка при получении эмбеддинга: {e}")
     except Exception as e:
         print(f"Не удалось открыть файл: {e}")
     

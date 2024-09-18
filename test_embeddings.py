@@ -2,17 +2,21 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from fuzzywuzzy import fuzz
-from openai import OpenAI
+import requests
 import re
 
-# Подключение к LM Studio
-client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
-
-# Функция для получения эмбеддинга текста
-def get_embedding(text, model="second-state/Nomic-embed-text-v1.5-Embedding-GGUF"):
+# Функция для получения эмбеддинга текста с использованием Ollama
+def get_embedding(text, model="mxbai-embed-large"):
     text = text.replace("\n", " ")
-    return client.embeddings.create(input=[text], model=model).data[0].embedding
-
+    response = requests.post('http://localhost:11434/api/embeddings', 
+                             json={
+                                 "model": model,
+                                 "prompt": text
+                             })
+    if response.status_code == 200:
+        return response.json()['embedding']
+    else:
+        raise Exception("Failed to get embedding from Ollama")
 
 def preprocess_text(text):
     # Удаляем специальные символы и приводим к нижнему регистру
@@ -32,7 +36,7 @@ def weighted_fuzzy_score(query, text):
     
     partial_ratio = fuzz.partial_ratio(query, text)/100
 
-    return partial_ratio#(ratio + partial_ratio + token_sort_ratio + token_set_ratio + best_partial) / sum(weights.values())
+    return partial_ratio
 
 def find_similar_products(user_query, product_embeddings, products_info):
     # Получаем эмбеддинг для пользовательского запроса
@@ -44,7 +48,6 @@ def find_similar_products(user_query, product_embeddings, products_info):
     # Рассчитываем косинусное сходство между запросом пользователя и эмбеддингами товаров
     similarities = cosine_similarity([user_embedding], product_embeddings)[0]
     
-    
     # Применяем улучшенный нечеткий поиск к названиям товаров
     fuzzy_results = []
     for idx, sim in enumerate(similarities):
@@ -55,8 +58,6 @@ def find_similar_products(user_query, product_embeddings, products_info):
     
     # Вычисляем среднее значение комбинированного скора
     max_combined_score = np.max([result[3] for result in fuzzy_results])
-
-    
     
     # Выбираем результаты выше среднего
     above_average_results = [
@@ -100,10 +101,6 @@ xlsx_file_path = "updated_data.xlsx"  # Укажите путь к вашему 
 # Загрузка данных
 products_info, product_embeddings = load_data(xlsx_file_path)
 
-
-
-
-
 def generate_data(query):
     similar_products = find_similar_products(query, product_embeddings, products_info)
     data = ''
@@ -112,7 +109,6 @@ def generate_data(query):
         data += f"Товар: {product['Name']} Код: {product['Code']} Колір: {product['Color']} Ціна: {product['Price']} {product['Currency']}\t{similarity}\n"
 
     return data
-
 
 # # Запрос пользователя
 # user_query = "Механизм вж 96 мм"
