@@ -50,7 +50,7 @@ def process_xlsx(file_path, columns_to_embed):
 
 # Пример использования
 xlsx_file_path = "data.xlsx"  # Укажите путь к вашему Excel файлу
-columns_to_embed = ["Name", "Code", "Color", "Brands"]  # Укажите правильные имена столбцов
+columns_to_embed = ["Search",]  # Укажите правильные имена столбцов
 
 # Обрабатываем файл и добавляем эмбеддинги
 df_with_embeddings = process_xlsx(xlsx_file_path, columns_to_embed)
