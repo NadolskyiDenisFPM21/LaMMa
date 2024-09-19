@@ -6,7 +6,7 @@ import requests
 import re
 
 # Функция для получения эмбеддинга текста с использованием Ollama
-def get_embedding(text, model="mxbai-embed-large"):
+def get_embedding(text, model="nomic-embed-text"):
     text = text.replace("\n", " ")
     response = requests.post('http://localhost:11434/api/embeddings', 
                              json={

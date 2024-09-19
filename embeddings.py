@@ -2,7 +2,7 @@ import pandas as pd
 import requests
 
 # Функция для получения эмбеддинга текста с использованием Ollama
-def get_embedding(text, model="mxbai-embed-large"):
+def get_embedding(text, model="nomic-embed-text"):
     text = text.replace("\n", " ")
     response = requests.post('http://localhost:11434/api/embeddings', 
                              json={
@@ -28,6 +28,7 @@ def process_xlsx(file_path, columns_to_embed):
                 combined_text = " ".join([str(row[col]) for col in columns_to_embed])
                 embedding = get_embedding(combined_text)
                 embeddings.append(embedding)
+                print(combined_text)
             except KeyError as e:
                 print(f"Ошибка: не найден столбец {e}")
             except Exception as e:
