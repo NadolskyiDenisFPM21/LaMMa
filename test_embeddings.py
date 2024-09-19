@@ -51,7 +51,7 @@ def find_similar_products(user_query, product_embeddings, products_info):
     # Применяем улучшенный нечеткий поиск к названиям товаров
     fuzzy_results = []
     for idx, sim in enumerate(similarities):
-        product_name = products_info.iloc[idx]['Search']
+        product_name = products_info.iloc[idx]['Name']
         fuzzy_score = weighted_fuzzy_score(user_query, product_name)
         combined_score = (sim + fuzzy_score)/2  # Комбинированный скор
         fuzzy_results.append((idx, sim, fuzzy_score, combined_score))
@@ -106,7 +106,7 @@ def generate_data(query):
     data = ''
     # Генерация ответа
     for product, similarity in similar_products:
-        data += f"Товар: {product['Name']} Код: {product['Code']} Колір: {product['Color']} Ціна: {product['Price']} {product['Currency']}\t{similarity}\n"
+        data += f"Товар: {product['Name']} Код: {product['Code']} Колір: {product['Color']} Ціна: {product['Price']} {product['Currency']}\n"
 
     return data
 
